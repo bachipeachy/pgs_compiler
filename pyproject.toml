@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pgs-compiler"
+version = "0.2.0"
+description = "Protocol-Governed Systems — compiler pipeline, admissibility construction, validation, conformance generation, and protocol tooling"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+
+authors = [
+  { name = "Bhash Ganti aka Bachi" }
+]
+
+keywords = [
+  "protocol-governed-systems",
+  "pgs",
+  "compiler",
+  "validation",
+  "conformance",
+  "tooling",
+  "visualization"
+]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development",
+  "Topic :: System :: Distributed Computing"
+]
+
+dependencies = [
+  "pgs-governance",
+  "click",
+  "pyyaml",
+  "jsonschema"
+]
+
+[project.urls]
+Homepage = "https://github.com/bachipeachy/pgs_compiler"
+Repository = "https://github.com/bachipeachy/pgs_compiler"
+
+[tool.setuptools]
+include-package-data = true
+packages = [
+  "pgs_compiler",
+  "pgs_compiler.compiler",
+  "pgs_compiler.compiler.atoms",
+  "pgs_compiler.compiler.phases",
+  "pgs_compiler.compiler.schemas",
+  "pgs_compiler.compiler.validators",
+  "pgs_compiler.compiler.visualization",
+  "pgs_compiler.tooling",
+  "pgs_compiler.tooling.artifact_validation",
+  "pgs_compiler.tooling.builder",
+  "pgs_compiler.tooling.experimental",
+  "pgs_compiler.tooling.experimental.molecule_builder",
+  "pgs_compiler.tooling.experimental.molecule_builder.molecule",
+  "pgs_compiler.tooling.protocol_validation",
+  "pgs_compiler.tooling.protocol_validation.cli",
+  "pgs_compiler.tooling.protocol_validation.core",
+  "pgs_compiler.tooling.visualization",
+]
+
+[tool.setuptools.package-dir]
+"pgs_compiler" = "."
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.yaml", "*.json", "*.sh"]

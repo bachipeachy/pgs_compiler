@@ -1,0 +1,78 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+
+# =========================
+# Virtual environments
+# =========================
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# Build / packaging
+# =========================
+build/
+dist/
+
+# =========================
+# Testing / coverage
+# =========================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# =========================
+# OS / editor
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.tmp
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# Secrets / local config
+# =========================
+.env
+.env.*
+*.local
+parkinglot/
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Claude Code (local only — never push)
+# =========================
+CLAUDE.md
+.claude/
+
+# =========================
+# PGS Protocol
+# =========================
+
+# Compiled outputs (generated artifacts — do not commit)
+**/compiled/
+**/outputs/
