@@ -71,11 +71,11 @@ else
         exit 1
     fi
 
-    # Clear data subdirectories
-    for dir in "$WS_DATA/events" "$WS_DATA/registry" "$WS_DATA/state"; do
-        if [[ -d "$dir" ]]; then
-            rm -f "$dir"/*
-            echo "  Cleared: $dir/"
+    # Clear domain/subdomain data directories
+    for domain_dir in "$WS_DATA"/*/; do
+        if [[ -d "$domain_dir" ]]; then
+            rm -rf "$domain_dir"
+            echo "  Cleared: $domain_dir"
         fi
     done
 
@@ -89,8 +89,9 @@ else
     fi
 
     # Restore seed data so workspace is immediately ready
-    cp "$WS_SEEDS/license_facts.json" "$WS_DATA/license_facts.json"
-    echo "  Restored: seeds/license_facts.json → data/"
+    mkdir -p "$WS_DATA/ai_governance/ai_licensing"
+    cp "$WS_SEEDS/license_facts.json" "$WS_DATA/ai_governance/ai_licensing/license_facts.json"
+    echo "  Restored: seeds/license_facts.json → data/ai_governance/ai_licensing/"
 fi
 
 echo ""
