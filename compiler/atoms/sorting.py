@@ -1,8 +1,6 @@
 """
 Deterministic sorting utilities.
 
-Patch E Applied: Prevent nondeterminism in artifact processing.
-
 Design:
 - Sort by FQDN (primary identity)
 - Stable ordering (same input → same order)

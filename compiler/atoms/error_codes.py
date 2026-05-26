@@ -15,16 +15,16 @@ from enum import Enum
 
 class ErrorCode(Enum):
     """
-    Error codes for trad-compiler.
+    Error codes for the PGS compiler.
 
-    Organized by phase:
-    - E0xx: Discovery errors
-    - E1xx: Parse errors
-    - E2xx: Validation errors
-    - E3xx: Materialization errors
-    - E4xx: Verification errors
-    - E7xx: ASSERT errors
-    - E8xx: Conformance errors
+    Organized by stage:
+    - E0xx: Discovery errors (S1)
+    - E1xx: Parse errors (S1)
+    - E2xx: Validation errors (S2–S4)
+    - E3xx: Materialization errors (S7)
+    - E4xx: Verification errors (S8)
+    - E7xx: ASSERT errors (S4)
+    - E8xx: Conformance errors (S7)
     - E9xx: Internal/system errors
     """
 
@@ -42,6 +42,9 @@ class ErrorCode(Enum):
 
     E004_CROSS_REPO_REF = "E004_CROSS_REPO_REF"
     """Cross-repo reference detected (source_path outside input_dir)."""
+
+    E005_DEPRECATED_ARTIFACT = "E005_DEPRECATED_ARTIFACT"
+    """Artifact marked status=deprecated; skipped during extraction."""
 
     # ==================
     # Parse (E1xx)
@@ -92,7 +95,7 @@ class ErrorCode(Enum):
     """Expected output file not found."""
 
     E402_UNDECLARED_OUTPUT = "E402_UNDECLARED_OUTPUT"
-    """Output file not in manifest."""
+    """Output file not declared in expected outputs."""
 
     E403_OUTPUT_MISMATCH = "E403_OUTPUT_MISMATCH"
     """Output doesn't match expected schema."""
@@ -100,25 +103,25 @@ class ErrorCode(Enum):
     # ==================
     # ASSERT Phase (E701-E750)
     # ==================
-    E701_ASSERTION_FAILURE = "E701"
+    E701_ASSERTION_FAILURE = "E701_ASSERTION_FAILURE"
     """Assertion violations detected."""
 
-    E702_UNKNOWN_ASSERT = "E702"
+    E702_UNKNOWN_ASSERT = "E702_UNKNOWN_ASSERT"
     """No executor for ASSERT artifact."""
 
-    E703_MALFORMED_ASSERT = "E703"
+    E703_MALFORMED_ASSERT = "E703_MALFORMED_ASSERT"
     """ASSERT artifact schema violation."""
 
     # ==================
     # Conformance (E8xx)
     # ==================
-    E801_TEST_DATA_MISSING = "E801"
+    E801_TEST_DATA_MISSING = "E801_TEST_DATA_MISSING"
     """Test data missing for CT."""
 
-    E802_CONFORMANCE_FAILURE = "E802"
+    E802_CONFORMANCE_FAILURE = "E802_CONFORMANCE_FAILURE"
     """CT conformance test failed."""
 
-    E803_TEST_DATA_INVALID = "E803"
+    E803_TEST_DATA_INVALID = "E803_TEST_DATA_INVALID"
     """TEST_DATA does not match CT contract."""
 
     # ==================
@@ -137,6 +140,7 @@ ERROR_SUGGESTIONS: dict[ErrorCode, str] = {
     ErrorCode.E002_DUPLICATE_FQDN: "Rename artifact or change namespace to make FQDN unique",
     ErrorCode.E003_INVALID_FILENAME: "Ensure filename matches pattern: {TYPE}_{NAME}_V{N}.md",
     ErrorCode.E004_CROSS_REPO_REF: "Move artifact into input_dir or remove reference",
+    ErrorCode.E005_DEPRECATED_ARTIFACT: "Remove deprecated artifact or update its status field",
     ErrorCode.E101_INVALID_YAML: "Check YAML syntax, ensure proper indentation",
     ErrorCode.E102_MISSING_FIELD: "Add required field to artifact frontmatter",
     ErrorCode.E104_INVALID_FQDN: "FQDN format: {namespace}::{artifact_code}",

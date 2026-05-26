@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pgs-compiler"
-version = "0.2.0"
-description = "Protocol-Governed Systems — compiler pipeline, admissibility construction, validation, conformance generation, and protocol tooling"
+version = "0.3.0"
+description = "Protocol-Governed Systems — compiler: topology-native governance compilation with multi-projection output"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -17,15 +17,13 @@ authors = [
 keywords = [
   "protocol-governed-systems",
   "pgs",
-  "compiler",
-  "validation",
-  "conformance",
-  "tooling",
-  "visualization"
+  "topology-compiler",
+  "governance-compilation",
+  "semantic-addressing"
 ]
 
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
@@ -44,7 +42,6 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/bachipeachy/pgs_compiler"
 Repository = "https://github.com/bachipeachy/pgs_compiler"
 
 [tool.setuptools]
@@ -53,20 +50,14 @@ packages = [
   "pgs_compiler",
   "pgs_compiler.compiler",
   "pgs_compiler.compiler.atoms",
-  "pgs_compiler.compiler.phases",
-  "pgs_compiler.compiler.schemas",
-  "pgs_compiler.compiler.validators",
-  "pgs_compiler.compiler.visualization",
-  "pgs_compiler.tooling",
-  "pgs_compiler.tooling.artifact_validation",
-  "pgs_compiler.tooling.builder",
-  "pgs_compiler.tooling.experimental",
-  "pgs_compiler.tooling.experimental.molecule_builder",
-  "pgs_compiler.tooling.experimental.molecule_builder.molecule",
-  "pgs_compiler.tooling.protocol_validation",
-  "pgs_compiler.tooling.protocol_validation.cli",
-  "pgs_compiler.tooling.protocol_validation.core",
-  "pgs_compiler.tooling.visualization",
+  "pgs_compiler.compiler.graph",
+  "pgs_compiler.compiler.stages",
+  "pgs_compiler.compiler.projections",
+  "pgs_compiler.compiler.governance",
+  "pgs_compiler.schemas",
+  "pgs_compiler.visualization",
+  "pgs_compiler.visualization.consumers",
+  "pgs_compiler.visualization.views",
 ]
 
 [tool.setuptools.package-dir]

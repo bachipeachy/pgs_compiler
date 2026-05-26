@@ -23,6 +23,14 @@ REPOS=(
   "pgs_ai_governance"
 )
 
+# Output trees written by the compiler into domain repos
+OUTPUT_DIRS=(
+  "compiled"
+  "evidence"
+  "vocabulary"
+  "tokenized"
+)
+
 DIR_COUNT=0
 FILE_COUNT=0
 SIZE_TOTAL=0
@@ -39,29 +47,32 @@ do
     echo ""
     echo "Scanning: $repo"
 
-    while IFS= read -r DIR
+    for DIR_NAME in "${OUTPUT_DIRS[@]}"
     do
-        if [[ -d "$DIR" ]]; then
+        while IFS= read -r DIR
+        do
+            if [[ -d "$DIR" ]]; then
 
-            FILES=$(find "$DIR" -type f | wc -l | xargs)
-            SIZE=$(du -sk "$DIR" | awk '{print $1}')
+                FILES=$(find "$DIR" -type f | wc -l | xargs)
+                SIZE=$(du -sk "$DIR" | awk '{print $1}')
 
-            echo "  Removing: $DIR"
-            echo "    files: $FILES"
-            echo "    size:  ${SIZE} KB"
+                echo "  Removing: $DIR"
+                echo "    files: $FILES"
+                echo "    size:  ${SIZE} KB"
 
-            FILE_COUNT=$((FILE_COUNT + FILES))
-            SIZE_TOTAL=$((SIZE_TOTAL + SIZE))
-            DIR_COUNT=$((DIR_COUNT + 1))
+                FILE_COUNT=$((FILE_COUNT + FILES))
+                SIZE_TOTAL=$((SIZE_TOTAL + SIZE))
+                DIR_COUNT=$((DIR_COUNT + 1))
 
-            rm -rf "$DIR"
-        fi
+                rm -rf "$DIR"
+            fi
 
-    done < <(find "$REPO_PATH" \
-            -type d \
-            -name compiled \
-            -not -path "*/.git/*" \
-            -not -path "*/.venv/*")
+        done < <(find "$REPO_PATH" \
+                -type d \
+                -name "$DIR_NAME" \
+                -not -path "*/.git/*" \
+                -not -path "*/.venv/*")
+    done
 
 done
 

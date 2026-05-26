@@ -7,14 +7,6 @@ Design:
 - No I/O, no state
 - Independently testable
 - Reusable across phases
-
-Patches Applied:
-- Patch A: FQDN immutability hardened
-- Patch B: PhaseResult immutability (frozen=True)
-- Patch C: Error codes centralized in error_codes.py
-- Patch D: Invariant helpers (require, require_not_none, require_exists)
-- Patch E: Deterministic ordering (sort_artifacts_by_fqdn, ensure_deterministic_output)
-- Patch F: Transient pipeline field stripping (strip_transient_pipeline_fields)
 """
 
 from pgs_compiler.compiler.atoms.error_codes import ErrorCode, ERROR_SUGGESTIONS

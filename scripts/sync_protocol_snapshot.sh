@@ -51,9 +51,9 @@ mkdir -p "$ARTIFACTS_DST" "$GOV_DST" "$CONFORMANCE_DST" "$VISUALIZATION_DST"
 
 # ── Helpers ──────────────────────────────────────────────────
 
-# Copy artifacts/{type}/*.json preserving type subdir
+# Copy canonical/{type}/*.json preserving type subdir
 copy_artifacts() {
-  local src="$1/artifacts"
+  local src="$1/canonical"
   local dst="$2"
   local count=0
   [ -d "$src" ] || { echo 0; return; }
@@ -126,3 +126,107 @@ done
 total_all_artifacts=$((total_artifacts + total_gov))
 echo "==> TOTAL"
 echo "   artifacts=$total_all_artifacts  conformance=$total_conf  visualization=$total_vis"
+
+# ── Vocabulary (per-structure address space projections) ─────
+VOCAB_DST="${PGS_WORKSPACE:-$HOME/pgs_workspace}/vocabulary_snapshot"
+rm -rf "$VOCAB_DST"
+mkdir -p "$VOCAB_DST"
+
+total_vocab=0
+
+# Platform vocabulary (governance repo)
+PLATFORM_VOCAB="$BASE_DIR/pgs_governance/compiled/vocabulary/platform"
+if [ -d "$PLATFORM_VOCAB" ]; then
+  cp -r "$PLATFORM_VOCAB" "$VOCAB_DST/platform"
+  total_vocab=$((total_vocab + 1))
+fi
+
+# Domain vocabularies (domain repos — now under compiled/vocabulary/)
+for compiled in "${DOMAIN_COMPILED[@]}"; do
+  for vocab_dir in "$compiled/vocabulary"/*; do
+    [ -d "$vocab_dir" ] || continue
+    structure_scope=$(basename "$vocab_dir")
+    cp -r "$vocab_dir" "$VOCAB_DST/$structure_scope"
+    total_vocab=$((total_vocab + 1))
+  done
+done
+
+echo "==> vocabulary: $total_vocab structures synced to vocabulary_snapshot/"
+
+# ── Tokenized topology (per-structure machine-oriented projections) ──
+TOK_DST="${PGS_WORKSPACE:-$HOME/pgs_workspace}/tokenized_snapshot"
+rm -rf "$TOK_DST"
+mkdir -p "$TOK_DST"
+
+total_tokenized=0
+
+# Platform tokenized (governance repo)
+PLATFORM_TOK="$BASE_DIR/pgs_governance/compiled/tokenized/platform"
+if [ -d "$PLATFORM_TOK" ]; then
+  cp -r "$PLATFORM_TOK" "$TOK_DST/platform"
+  total_tokenized=$((total_tokenized + 1))
+fi
+
+# Domain tokenized (domain repos — now under compiled/tokenized/)
+for compiled in "${DOMAIN_COMPILED[@]}"; do
+  for tok_dir in "$compiled/tokenized"/*; do
+    [ -d "$tok_dir" ] || continue
+    structure_scope=$(basename "$tok_dir")
+    cp -r "$tok_dir" "$TOK_DST/$structure_scope"
+    total_tokenized=$((total_tokenized + 1))
+  done
+done
+
+echo "==> tokenized: $total_tokenized structures synced to tokenized_snapshot/"
+
+# ── Evidence (per-structure dual-form execution topology) ──
+EVI_DST="${PGS_WORKSPACE:-$HOME/pgs_workspace}/evidence_snapshot"
+rm -rf "$EVI_DST"
+mkdir -p "$EVI_DST"
+
+total_evidence=0
+
+# Platform evidence (governance repo)
+PLATFORM_EVI="$BASE_DIR/pgs_governance/compiled/evidence/platform"
+if [ -d "$PLATFORM_EVI" ]; then
+  cp -r "$PLATFORM_EVI" "$EVI_DST/platform"
+  total_evidence=$((total_evidence + 1))
+fi
+
+# Domain evidence (domain repos — now under compiled/evidence/)
+for compiled in "${DOMAIN_COMPILED[@]}"; do
+  for evi_dir in "$compiled/evidence"/*; do
+    [ -d "$evi_dir" ] || continue
+    structure_scope=$(basename "$evi_dir")
+    cp -r "$evi_dir" "$EVI_DST/$structure_scope"
+    total_evidence=$((total_evidence + 1))
+  done
+done
+
+echo "==> evidence: $total_evidence structures synced to evidence_snapshot/"
+
+# ── Trust attestations (per-structure cryptographic binding) ────
+TRUST_DST="${PGS_WORKSPACE:-$HOME/pgs_workspace}/trust_snapshot"
+rm -rf "$TRUST_DST"
+mkdir -p "$TRUST_DST"
+
+total_trust=0
+
+# Platform trust (governance repo)
+PLATFORM_TRUST="$BASE_DIR/pgs_governance/compiled/trust/platform"
+if [ -d "$PLATFORM_TRUST" ]; then
+  cp -r "$PLATFORM_TRUST" "$TRUST_DST/platform"
+  total_trust=$((total_trust + 1))
+fi
+
+# Domain trust (domain repos — now under compiled/trust/)
+for compiled in "${DOMAIN_COMPILED[@]}"; do
+  for trust_dir in "$compiled/trust"/*; do
+    [ -d "$trust_dir" ] || continue
+    structure_scope=$(basename "$trust_dir")
+    cp -r "$trust_dir" "$TRUST_DST/$structure_scope"
+    total_trust=$((total_trust + 1))
+  done
+done
+
+echo "==> trust: $total_trust structures synced to trust_snapshot/"

@@ -1,14 +1,11 @@
 """
-Error model for trad-compiler.
-
-Patch 6 Applied: Error identity uses fqdn_id + artifact_code (not ambiguous artifact_id)
-Patch C Applied: Error codes centralized in error_codes.py
+Structured error model for the PGS compiler.
 
 Design:
-- Structured errors (machine-readable + human-friendly)
-- Phase-tagged (know where error occurred)
-- Context-rich (include all relevant info)
-- Actionable messages (what to fix, not just what's wrong)
+- Machine-readable + human-friendly
+- Phase-tagged (S1–S8)
+- Context-rich (FQDN, artifact_code, source_path)
+- Actionable messages via ERROR_SUGGESTIONS
 """
 
 from dataclasses import dataclass, field
@@ -32,15 +29,12 @@ class CompilerError(Exception):
     """
     Structured error for compiler failures.
 
-    Patch 6: Uses fqdn_id (PRIMARY identity) + artifact_code (display only).
-    Never uses ambiguous 'artifact_id'.
-
     Fields:
         code: Error code (e.g., E201_MISSING_REFERENCE)
         message: Human-readable description
-        phase: Phase where error occurred (DISCOVERY, PARSE, etc.)
-        fqdn_id: Fully qualified domain name (PRIMARY identity)
-        artifact_code: Short code for display/logging (NOT unique)
+        phase: Stage where error occurred (e.g., S1_EXTRACT)
+        fqdn_id: Fully qualified domain name (primary identity)
+        artifact_code: Short code for display/logging (not unique)
         source_path: Path to source file if applicable
         context: Additional debug information
         severity: Error severity level

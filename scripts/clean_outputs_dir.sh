@@ -17,44 +17,7 @@ echo "============================================="
 echo ""
 
 # -----------------------------------------------
-# 1. pgs_compiler — remove all outputs/ directories
-# -----------------------------------------------
-
-echo "[ pgs_compiler ] Scanning for outputs/ directories..."
-echo ""
-
-DIR_COUNT=0
-FILE_COUNT=0
-SIZE_TOTAL=0
-
-while IFS= read -r TARGET; do
-    if [[ -d "$TARGET" ]]; then
-        FILES=$(find "$TARGET" -type f | wc -l | xargs)
-        SIZE=$(du -sk "$TARGET" | awk '{print $1}')
-
-        echo "  Removing: $TARGET"
-        echo "    files: $FILES"
-        echo "    size:  ${SIZE} KB"
-        echo ""
-
-        FILE_COUNT=$((FILE_COUNT + FILES))
-        SIZE_TOTAL=$((SIZE_TOTAL + SIZE))
-        DIR_COUNT=$((DIR_COUNT + 1))
-
-        rm -rf "$TARGET"
-    fi
-done < <(find "$REPO_ROOT" -type d -name "outputs")
-
-if [[ $DIR_COUNT -eq 0 ]]; then
-    echo "  No outputs/ directories found."
-    echo ""
-fi
-
-echo "  outputs/ removed : $DIR_COUNT  |  files: $FILE_COUNT  |  reclaimed: ${SIZE_TOTAL} KB"
-echo ""
-
-# -----------------------------------------------
-# 2. pgs_workspace — clear data/ and traces/
+# pgs_workspace — clear data/ and traces/
 # -----------------------------------------------
 
 echo "[ pgs_workspace ] Clearing runtime state..."
@@ -64,37 +27,32 @@ if [[ ! -d "$WS_ROOT" ]]; then
     echo "  WARNING: pgs_workspace not found at $WS_ROOT — skipping."
     echo ""
 else
-    # Guard: seeds/ must exist before touching data/
-    if [[ ! -d "$WS_SEEDS" ]]; then
-        echo "  ERROR: seeds/ directory missing: $WS_SEEDS" >&2
-        echo "  Aborting workspace cleanup — data/ left untouched." >&2
-        exit 1
+    if [[ -d "$WS_DATA" ]]; then
+        rm -rf "$WS_DATA"
+        echo "  Cleared: $WS_DATA"
+    else
+        echo "  Skip: data/ not found"
     fi
 
-    # Clear domain/subdomain data directories
-    for domain_dir in "$WS_DATA"/*/; do
-        if [[ -d "$domain_dir" ]]; then
-            rm -rf "$domain_dir"
-            echo "  Cleared: $domain_dir"
-        fi
-    done
-
-    # Remove all stray files directly in data/
-    find "$WS_DATA" -maxdepth 1 -type f -delete
-
-    # Clear traces
     if [[ -d "$WS_TRACES" ]]; then
-        rm -rf "$WS_TRACES"/*/
-        echo "  Cleared: $WS_TRACES/"
+        rm -rf "$WS_TRACES"
+        echo "  Cleared: $WS_TRACES"
+    else
+        echo "  Skip: traces/ not found"
     fi
 
-    # Restore seed data so workspace is immediately ready
-    mkdir -p "$WS_DATA/ai_governance/ai_licensing"
-    cp "$WS_SEEDS/license_facts.json" "$WS_DATA/ai_governance/ai_licensing/license_facts.json"
-    echo "  Restored: seeds/license_facts.json → data/ai_governance/ai_licensing/"
+    # Restore read-only seed data — CS implementations auto-create their own dirs
+    # on first workflow run, but seeds/ files are read-only input that must exist.
+    if [[ -d "$WS_SEEDS" ]]; then
+        mkdir -p "$WS_DATA/ai_governance/ai_licensing"
+        cp "$WS_SEEDS/license_facts.json" "$WS_DATA/ai_governance/ai_licensing/license_facts.json"
+        echo "  Restored: seeds/license_facts.json → data/ai_governance/ai_licensing/"
+    else
+        echo "  WARNING: seeds/ not found at $WS_SEEDS — ai_governance workflows will fail until seeded."
+    fi
 fi
 
 echo ""
 echo "============================================="
-echo "Done."
+echo "Done. Workspace ready — run any workflow without bootstrapping."
 echo ""

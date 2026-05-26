@@ -5,7 +5,8 @@ pgs build — Snapshot build orchestration entry point.
 Pipeline:
   1. sync_protocol_snapshot.sh   (file movement — unchanged)
   2. conformance/runner.py       (correctness — all CT conformance cases)
-  3. snapshot_status.json        (verification contract — written only on full pass)
+  3. snapshot_attestation.json   (trust boundary — root hash of per-structure attestations)
+  4. snapshot_status.json        (verification contract — written only on full pass)
 
 Usage:
   python pgs_compiler/scripts/pgs_build.py --workspace /abs/path/to/pgs_workspace
@@ -14,6 +15,7 @@ Hard gates:
   - Sync script failure → exit 1, no status written
   - Any conformance failure → exit 1, no status written
   - snapshot_status.json is only written when ALL cases pass
+  - Missing attestations → warning only (not a hard gate in v0.3.0)
 """
 
 import argparse
@@ -54,7 +56,7 @@ def step_sync(workspace: Path) -> None:
 
 def step_conformance(workspace: Path):
     print("[pgs build] ── Step 2: CT conformance tests ─────────────────────")
-    from omnibachi.implementation.conformance.runner import run as run_conformance
+    from pgs_runtime.conformance import run as run_conformance
     snapshot_root = workspace / "protocol_snapshot"
     result = run_conformance(snapshot_root)
 
@@ -75,8 +77,81 @@ def step_conformance(workspace: Path):
     return result
 
 
+def step_attest_snapshot(workspace: Path) -> str | None:
+    """
+    Aggregate per-structure attestations into a root snapshot_attestation.json.
+
+    Scans trust_snapshot/ for structure_attestation.json files, collects their
+    attestation_hash values, computes root_hash = SHA256(sorted hashes), and
+    writes trust_snapshot/snapshot_attestation.json.
+
+    Returns root_hash on success, None if no attestations found (warning only).
+    """
+    import hashlib
+    from datetime import datetime, timezone
+
+    print("[pgs build] ── Step 3: snapshot attestation ────────────────────────")
+
+    trust_root = workspace / "trust_snapshot"
+    if not trust_root.exists():
+        print("[pgs build] WARNING: trust_snapshot/ not found — skipping attestation")
+        return None
+
+    attestation_files = sorted(trust_root.rglob("structure_attestation.json"))
+    if not attestation_files:
+        print("[pgs build] WARNING: no structure_attestation.json files found — skipping attestation")
+        return None
+
+    structure_hashes: list[str] = []
+    structure_ids: list[str] = []
+    has_stub = False
+
+    for att_file in attestation_files:
+        try:
+            with open(att_file, "r", encoding="utf-8") as f:
+                att = json.load(f)
+            h = att.get("attestation_hash", "")
+            structure_ids.append(att.get("structure_id", str(att_file)))
+            if h:
+                structure_hashes.append(h)
+            if att.get("signing_algorithm") == "STUB":
+                has_stub = True
+        except Exception as e:
+            print(f"[pgs build] WARNING: failed to read {att_file}: {e}")
+
+    if not structure_hashes:
+        print("[pgs build] WARNING: no attestation hashes found — skipping snapshot attestation")
+        return None
+
+    # Root hash: SHA256 of sorted per-structure attestation hashes (deterministic)
+    root_hash = hashlib.sha256(
+        b"".join(h.encode("utf-8") for h in sorted(structure_hashes))
+    ).hexdigest()
+
+    snapshot_attestation = {
+        "snapshot_attestation_version": "V0",
+        "root_hash": root_hash,
+        "structure_count": len(structure_hashes),
+        "structure_ids": sorted(structure_ids),
+        "signing_algorithm": "STUB",
+        "signature": "STUB_NOT_CRYPTOGRAPHICALLY_SIGNED",
+        "public_key_ref": "STUB",
+        "attested_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    output_path = trust_root / "snapshot_attestation.json"
+    output_path.write_text(json.dumps(snapshot_attestation, indent=2, sort_keys=True) + "\n")
+
+    if has_stub:
+        print(f"[pgs build] WARNING: signing_algorithm is STUB — stub attestation only")
+    print(f"[pgs build] snapshot_attestation.json written → {output_path}")
+    print(f"[pgs build]   structures: {len(structure_hashes)}, root_hash: {root_hash[:16]}...")
+
+    return root_hash
+
+
 def step_mark_valid(workspace: Path, result) -> None:
-    print("[pgs build] ── Step 3: mark snapshot valid ───────────────────────")
+    print("[pgs build] ── Step 4: mark snapshot valid ───────────────────────")
     status = {
         "status": "VALID",
         "conformance_passed": True,
@@ -110,6 +185,8 @@ def main() -> None:
             f"            Snapshot is NOT marked valid. Fix the failing CT(s) and rebuild."
         )
         sys.exit(1)
+
+    step_attest_snapshot(workspace)
 
     step_mark_valid(workspace, result)
 
