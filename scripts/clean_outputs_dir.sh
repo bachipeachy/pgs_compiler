@@ -47,6 +47,10 @@ else
         mkdir -p "$WS_DATA/ai_governance/ai_licensing"
         cp "$WS_SEEDS/license_facts.json" "$WS_DATA/ai_governance/ai_licensing/license_facts.json"
         echo "  Restored: seeds/license_facts.json → data/ai_governance/ai_licensing/"
+
+        mkdir -p "$WS_DATA/blockchain/consensus_pos/registry"
+        cp "$WS_SEEDS/validators.json" "$WS_DATA/blockchain/consensus_pos/registry/validators.json"
+        echo "  Restored: seeds/validators.json → data/blockchain/consensus_pos/registry/"
     else
         echo "  WARNING: seeds/ not found at $WS_SEEDS — ai_governance workflows will fail until seeded."
     fi

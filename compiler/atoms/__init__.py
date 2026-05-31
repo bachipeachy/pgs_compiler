@@ -21,6 +21,7 @@ from pgs_compiler.compiler.atoms.sorting import (
     sort_by_fqdn,
     sort_dict_keys,
 )
+from pgs_compiler.compiler.atoms.snapshot_gate import assert_snapshot_valid
 
 __all__ = [
     # Error model
@@ -48,4 +49,6 @@ __all__ = [
     "sort_artifacts_by_fqdn",
     "sort_by_fqdn",
     "sort_dict_keys",
+    # Snapshot admission control
+    "assert_snapshot_valid",
 ]

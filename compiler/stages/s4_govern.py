@@ -258,6 +258,8 @@ def _precompute_structural_analysis(
     cc_inputs_satisfied: dict[str, dict] = {}
     wf_binding_surface: dict[str, dict] = {}
 
+    cc_op_conformance: dict[str, dict] = {}
+
     for fqdn, node in graph.nodes.items():
         if node.kind == NodeKind.WF:
             wf_execution_graphs[fqdn] = _analyze_wf_execution_graph(fqdn, graph, query)
@@ -269,6 +271,9 @@ def _precompute_structural_analysis(
         elif node.kind == NodeKind.CC:
             cc_bindings[fqdn] = _analyze_cc_binding(fqdn, node, graph, query)
             cc_chaining[fqdn] = _analyze_cc_chaining(fqdn, node, graph)
+            result = _analyze_cc_op_conformance(fqdn, node, graph)
+            if result is not None:
+                cc_op_conformance[fqdn] = result
 
     return {
         "topology_cycle_analysis": topology_cycle_analysis,
@@ -282,6 +287,7 @@ def _precompute_structural_analysis(
         "cc_unused_outputs": cc_unused_outputs,
         "cc_inputs_satisfied": cc_inputs_satisfied,
         "wf_binding_surface": wf_binding_surface,
+        "cc_op_conformance": cc_op_conformance,
     }
 
 
@@ -396,6 +402,67 @@ def _analyze_cc_chaining(fqdn: str, node, graph: Graph) -> dict:
                     "violation": f"CC {fqdn} chains to CC {e.target_fqdn}",
                     "fix": "CCs must bind CT/CS only, not other CCs",
                 })
+
+    return {
+        "status": "FAILED" if violations else "PASSED",
+        "violations": violations,
+    }
+
+
+def _analyze_cc_op_conformance(fqdn: str, node, graph: Graph) -> dict | None:
+    """
+    Analyze CC pipeline steps: op must be in target CS supported_operation_specs.
+
+    Returns None if the CC has no CS-binding steps (exempt).
+    Returns a violations dict if any step declares an op not in the CS's declared ops.
+    """
+    violations = []
+    has_cs_steps = False
+
+    core = node.frontmatter.get("core", {})
+    pipeline = core.get("pipeline", []) if isinstance(core, dict) else []
+
+    for step in pipeline:
+        if not isinstance(step, dict):
+            continue
+
+        side_effect_ref = step.get("side_effect")
+        if not side_effect_ref:
+            continue  # CT-binding steps are exempt
+
+        has_cs_steps = True
+        op = step.get("op")
+        step_name = step.get("step", "<unnamed>")
+
+        if not op:
+            violations.append({
+                "violation": f"CC {fqdn} step '{step_name}' binds CS '{side_effect_ref}' but declares no op",
+                "fix": "Add op field matching one of the CS's declared operations",
+            })
+            continue
+
+        # Resolve the CS node from the graph
+        cs_node = graph.nodes.get(side_effect_ref)
+        if cs_node is None:
+            # FQDN assertion handles unresolved references; skip here
+            continue
+
+        # Read CS declared operations from core.policy.operations
+        cs_core = cs_node.frontmatter.get("core", {})
+        cs_policy = cs_core.get("policy", {}) if isinstance(cs_core, dict) else {}
+        declared_ops = cs_policy.get("operations", []) if isinstance(cs_policy, dict) else []
+
+        if declared_ops and op not in declared_ops:
+            violations.append({
+                "violation": (
+                    f"CC {fqdn} step '{step_name}' declares op '{op}' "
+                    f"but CS '{side_effect_ref}' supports: {declared_ops}"
+                ),
+                "fix": f"Change op to one of: {', '.join(str(o) for o in declared_ops)}",
+            })
+
+    if not has_cs_steps:
+        return None  # Exempt — no CS-binding steps
 
     return {
         "status": "FAILED" if violations else "PASSED",

@@ -111,6 +111,7 @@ echo "   governance_artifacts=$g"
 total_gov=$((total_gov + g))
 
 # Domain repos
+failed_domains=()
 for compiled in "${DOMAIN_COMPILED[@]}"; do
   label="${compiled#$ROOT/../}"
   echo "==> $label"
@@ -121,7 +122,28 @@ for compiled in "${DOMAIN_COMPILED[@]}"; do
   total_artifacts=$((total_artifacts + a))
   total_conf=$((total_conf + c))
   total_vis=$((total_vis + v))
+
+  # Hard gate: every registered domain must contribute artifacts.
+  # 0 artifacts means the compile either failed or was never run.
+  # A partial snapshot cannot be attested as VALID.
+  if [ "$a" -eq 0 ]; then
+    failed_domains+=("$label")
+  fi
 done
+
+if [ "${#failed_domains[@]}" -gt 0 ]; then
+  echo ""
+  echo "ERROR: The following domain(s) produced 0 artifacts:"
+  for d in "${failed_domains[@]}"; do
+    echo "         $d"
+  done
+  echo ""
+  echo "       This indicates a compile failure or missing compile run."
+  echo "       A partial snapshot cannot be marked VALID."
+  echo "       Fix and recompile all structures before running build:"
+  echo "         python -m pgs_compiler.cli compile --structure STRUCTURE_BUILD_BLOCKCHAIN_CONFIG_V0"
+  exit 1
+fi
 
 total_all_artifacts=$((total_artifacts + total_gov))
 echo "==> TOTAL"

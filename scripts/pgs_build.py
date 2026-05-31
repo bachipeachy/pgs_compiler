@@ -166,6 +166,24 @@ def step_mark_valid(workspace: Path, result) -> None:
     print(f"[pgs build] snapshot_status.json written → {status_file}")
 
 
+def step_invalidate_snapshot(workspace: Path) -> None:
+    """
+    Immediately mark the snapshot INVALID at build start.
+
+    Written before any sync or validation work begins so that if this build
+    run fails at any point (sync failure, conformance failure, etc.), the
+    snapshot_status.json reflects the failure rather than the previous run's
+    result. step_mark_valid overwrites this only on full pass.
+    """
+    status = {
+        "status": "INVALID",
+        "reason": "Build in progress or failed — do not consume this snapshot",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    status_file = workspace / "snapshot_status.json"
+    status_file.write_text(json.dumps(status, indent=2) + "\n")
+
+
 def main() -> None:
     args = parse_args()
 
@@ -174,6 +192,10 @@ def main() -> None:
         sys.exit(f"[pgs build] ERROR: --workspace must be an absolute path, got: {args.workspace}")
     if not workspace.exists():
         sys.exit(f"[pgs build] ERROR: workspace not found: {workspace}")
+
+    # Invalidate snapshot before any work — any failure leaves it INVALID.
+    # step_mark_valid overwrites this only after all gates pass.
+    step_invalidate_snapshot(workspace)
 
     step_sync(workspace)
 
