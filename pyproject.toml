@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pgs-compiler"
-version = "0.4.0"
+version = "0.5.0"
 description = "Protocol-Governed Systems — compiler: topology-native governance compilation with multi-projection output"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -54,7 +54,6 @@ packages = [
   "pgs_compiler.compiler.stages",
   "pgs_compiler.compiler.projections",
   "pgs_compiler.compiler.governance",
-  "pgs_compiler.schemas",
   "pgs_compiler.visualization",
   "pgs_compiler.visualization.consumers",
   "pgs_compiler.visualization.views",

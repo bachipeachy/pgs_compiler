@@ -167,7 +167,7 @@ def make_metadata(
 
 
 # Version constants — compiler_version must match pyproject.toml
-COMPILER_VERSION = "0.3.0"
+COMPILER_VERSION = "0.5.0"
 PROJECTION_SCHEMA_VERSION = "v0"
 
 # Structure artifact code → structure scope for projection output paths.

@@ -43,11 +43,11 @@ DST_ROOT="${PGS_WORKSPACE:-$HOME/pgs_workspace}/protocol_snapshot"
 ARTIFACTS_DST="$DST_ROOT/artifacts"
 GOV_DST="$DST_ROOT/governance/artifacts"
 CONFORMANCE_DST="$DST_ROOT/conformance"
-VISUALIZATION_DST="$DST_ROOT/visualization"
+BEHAVIOR_LOGIC_DST="$DST_ROOT/behavior_logic"
 
 # ── Clean and recreate destination ───────────────────────────
-rm -rf "$ARTIFACTS_DST" "$GOV_DST" "$CONFORMANCE_DST" "$VISUALIZATION_DST"
-mkdir -p "$ARTIFACTS_DST" "$GOV_DST" "$CONFORMANCE_DST" "$VISUALIZATION_DST"
+rm -rf "$ARTIFACTS_DST" "$GOV_DST" "$CONFORMANCE_DST" "$BEHAVIOR_LOGIC_DST"
+mkdir -p "$ARTIFACTS_DST" "$GOV_DST" "$CONFORMANCE_DST" "$BEHAVIOR_LOGIC_DST"
 
 # ── Helpers ──────────────────────────────────────────────────
 
@@ -80,9 +80,9 @@ copy_conformance() {
   echo "$count"
 }
 
-# Copy visualization preserving per-WF subdirs
-copy_visualization() {
-  local src="$1/visualization"
+# Copy behavior_logic preserving per-WF subdirs
+copy_behavior_logic() {
+  local src="$1/behavior_logic"
   local dst="$2"
   local count=0
   [ -d "$src" ] || { echo 0; return; }
@@ -115,10 +115,10 @@ failed_domains=()
 for compiled in "${DOMAIN_COMPILED[@]}"; do
   label="${compiled#$ROOT/../}"
   echo "==> $label"
-  a=$(copy_artifacts   "$compiled" "$ARTIFACTS_DST")
-  c=$(copy_conformance "$compiled" "$CONFORMANCE_DST")
-  v=$(copy_visualization "$compiled" "$VISUALIZATION_DST")
-  echo "   artifacts=$a  conformance=$c  visualization=$v"
+  a=$(copy_artifacts    "$compiled" "$ARTIFACTS_DST")
+  c=$(copy_conformance  "$compiled" "$CONFORMANCE_DST")
+  v=$(copy_behavior_logic "$compiled" "$BEHAVIOR_LOGIC_DST")
+  echo "   artifacts=$a  conformance=$c  behavior_logic=$v"
   total_artifacts=$((total_artifacts + a))
   total_conf=$((total_conf + c))
   total_vis=$((total_vis + v))
@@ -147,7 +147,7 @@ fi
 
 total_all_artifacts=$((total_artifacts + total_gov))
 echo "==> TOTAL"
-echo "   artifacts=$total_all_artifacts  conformance=$total_conf  visualization=$total_vis"
+echo "   artifacts=$total_all_artifacts  conformance=$total_conf  behavior_logic=$total_vis"
 
 # ── Vocabulary (per-structure address space projections) ─────
 VOCAB_DST="${PGS_WORKSPACE:-$HOME/pgs_workspace}/vocabulary_snapshot"

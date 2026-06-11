@@ -168,7 +168,7 @@ def s7_materialize(state: State) -> State:
     errors.extend(conf_errors)
     trace.extend(conf_trace)
 
-    # Post-materialization: generate workflow graphs (best-effort)
+    # Post-materialization: generate workflow graphs into behavior_logic/ (best-effort)
     graph_warnings = _generate_workflow_graphs(projections, structure_config, resolver)
     if graph_warnings:
         state = state.with_warnings(*(
@@ -1034,6 +1034,7 @@ def _generate_conformance_tests(
             bindings = case_dict.get("bindings", {})
             expected = case_dict.get("expected", {})
             assertions = case_dict.get("assertions", {})
+            expected_outcome = case_dict.get("expected_outcome", "SUCCESS")
 
             # Build CT-IR with bound inputs
             ct_ir = dict(ct_ir_base)
@@ -1056,6 +1057,7 @@ def _generate_conformance_tests(
                 "ct_fqdn": ct_fqdn,
                 "ct_ir": ct_ir,
                 "expected": expected,
+                "expected_outcome": expected_outcome,
                 "fqdn": f"{ct_fqdn}::{case_id}",
                 "test_data_source": td_node.fqdn,
             }
@@ -1097,7 +1099,7 @@ def _generate_workflow_graphs(
     structure_config: dict[str, Any],
     resolver: LayerResolver,
 ) -> list[str]:
-    """Generate workflow graph artifacts (JSON, PNG) — best-effort post-process."""
+    """Generate workflow graph artifacts (JSON, PNG) into behavior_logic/ — best-effort post-process."""
     warnings: list[str] = []
 
     try:
@@ -1139,12 +1141,12 @@ def _generate_workflow_graphs(
                     structure_config,
                     domain=domain_name,
                 )
-                visualization_root = compiled_root.parent / "visualization"
+                behavior_logic_root = compiled_root.parent / "behavior_logic"
             except Exception as e:
-                warnings.append(f"{wf_code}: Failed to resolve visualization path: {e}")
+                warnings.append(f"{wf_code}: Failed to resolve behavior_logic path: {e}")
                 continue
 
-            result = generate_workflow_graph(wf_artifact, cc_artifacts, visualization_root)
+            result = generate_workflow_graph(wf_artifact, cc_artifacts, behavior_logic_root)
 
             if result["status"] == "FAILED":
                 warnings.append(f"{wf_code}: Graph generation failed - {', '.join(result.get('errors', []))}")
@@ -1155,3 +1157,4 @@ def _generate_workflow_graphs(
             warnings.append(f"{wf_code}: Unexpected error - {e}")
 
     return warnings
+

@@ -7,7 +7,7 @@ It does not execute behavior. It does not contain runtime logic. It does not int
 
 Behavior is declared in protocol, compiled into snapshots, executed by runtime, and observed via traces.
 
-> **New to PGS?** This is one of eight repositories in the Protocol-Governed Systems ecosystem.
+> **New to PGS?** This is one of the repositories in the Protocol-Governed Systems ecosystem.
 > For orientation, architecture overview, and end-to-end execution, start at [pgs_workspace](https://github.com/bachipeachy/pgs_workspace).
 
 ---
@@ -156,6 +156,7 @@ A single compilation produces six distinct snapshot projections, each optimized 
 | Execution | `pgs_runtime` | Traverse compiled graph deterministically |
 | Capabilities | `pgs_capabilities` | Provide CT/CS implementations |
 | Domains | `pgs_blockchain`, `pgs_ai_governance` | Real-world workflows |
+| Change Mgmt | `pgs_change_mgmt` | Governed SDLC — Change Request to Authoring Mandate (new in v0.5.0) |
 | Entry point | `pgs_workspace` | Run and observe |
 
 ---

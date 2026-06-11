@@ -89,10 +89,53 @@ def project_dispatch(graph: Graph) -> tuple[Projection, list[TraceEvent]]:
     """
     trace: list[TraceEvent] = []
 
-    # --- Routing: WF_addr → {CC_addr → {condition_addr: next_CC_addr}} ---
+    # --- Pre-pass: build node_key routing annotation tables from WF frontmatter ---
+    # wf_node_next_keys[wf_addr][src_CC_addr][condition_str] = target_node_key
+    # Needed to annotate routing values with target_node_key so the scheduler can
+    # distinguish different WF usages of the same CC (e.g. four denial audit nodes).
+    wf_node_next_keys: dict[str, dict[str, dict[str, str]]] = {}
+    # wf_start_keys[wf_addr] = start_node_key (from core.start_node)
+    wf_start_keys: dict[int, str] = {}
+
+    for _wf_fqdn, _wf_n in graph.nodes.items():
+        if _wf_n.kind != NodeKind.WF or _wf_n.address < 0:
+            continue
+        _core = _wf_n.frontmatter.get("core", {})
+        if not hasattr(_core, "get"):
+            continue
+        _start_nk = _core.get("start_node", "")
+        if _start_nk:
+            wf_start_keys[_wf_n.address] = _start_nk
+        _nodes_dict = _core.get("nodes", {})
+        if not hasattr(_nodes_dict, "items"):
+            continue
+        _wf_s = str(_wf_n.address)
+        _src_map: dict[str, dict[str, str]] = {}
+        for _nk, _nd in _nodes_dict.items():
+            if not hasattr(_nd, "get"):
+                continue
+            _fqdn_id = _nd.get("fqdn_id", "")
+            if not _fqdn_id or _fqdn_id not in graph.nodes:
+                continue
+            _cc_n = graph.nodes[_fqdn_id]
+            if _cc_n.address < 0:
+                continue
+            _next_map = _nd.get("next", {})
+            if not isinstance(_next_map, dict) or not _next_map:
+                continue
+            _src_s = str(_cc_n.address)
+            if _src_s not in _src_map:
+                _src_map[_src_s] = {}
+            for _cond_str, _tgt_nk in _next_map.items():
+                _src_map[_src_s][_cond_str] = _tgt_nk
+        wf_node_next_keys[_wf_s] = _src_map
+
+    # --- Routing: WF_addr → {CC_addr → {condition_addr: {"addr": next_CC_addr, "key": next_node_key}}} ---
     # Source: NODE_NEXT edges (each carries wf_fqdn in metadata from S2).
     # Keyed by WF so shared CCs have correct per-WF continuations.
-    routing: dict[str, dict[str, dict[str, int]]] = {}
+    # Values carry both address and node_key so the scheduler can distinguish
+    # different WF usages of the same CC (e.g. multiple denial audit nodes).
+    routing: dict[str, dict[str, dict[str, dict[str, Any]]]] = {}
 
     for edge in graph.edges:
         if edge.kind != EdgeKind.NODE_NEXT:
@@ -116,7 +159,9 @@ def project_dispatch(graph: Graph) -> tuple[Projection, list[TraceEvent]]:
             routing[wf_key] = {}
         if src not in routing[wf_key]:
             routing[wf_key][src] = {}
-        routing[wf_key][src][str(condition_addr)] = edge.target_address
+        condition_str = edge.metadata.get("condition", "")
+        target_nk = wf_node_next_keys.get(wf_key, {}).get(src, {}).get(condition_str, "")
+        routing[wf_key][src][str(condition_addr)] = {"addr": edge.target_address, "key": target_nk}
 
     # --- Pipeline: CC_addr → [<step_dict>, ...] ---
     # Source: CC_BINDS_CT and CC_BINDS_CS edges, sorted by pipeline_index.
@@ -226,7 +271,7 @@ def project_dispatch(graph: Graph) -> tuple[Projection, list[TraceEvent]]:
             for input_name, binding in raw_inputs.items():
                 converted[input_name] = _convert_binding(binding, code_to_addr)
 
-            wf_bindings[str(cc_node.address)] = converted
+            wf_bindings[node_key] = converted
 
         if wf_bindings:
             bindings[str(wf_node.address)] = wf_bindings
@@ -247,9 +292,12 @@ def project_dispatch(graph: Graph) -> tuple[Projection, list[TraceEvent]]:
         elif edge.kind == EdgeKind.WF_ADMITS_VIA_IN:
             wf_in[edge.source_address] = edge.target_address
 
-    entry: dict[str, dict[str, int]] = {}
+    entry: dict[str, dict[str, Any]] = {}
     for wf_addr, start_addr in wf_start.items():
-        e: dict[str, int] = {"start": start_addr}
+        e: dict[str, Any] = {
+            "start": start_addr,
+            "start_key": wf_start_keys.get(wf_addr, ""),
+        }
         if wf_addr in wf_rb:
             e["rb"] = wf_rb[wf_addr]
         if wf_addr in wf_in:

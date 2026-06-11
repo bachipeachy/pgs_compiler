@@ -4,7 +4,6 @@ CLI entry point for PGS compiler.
 Subcommands:
   build             — compile one or more STRUCTURE artifacts (S1–S9 pipeline)
   inspect           — query evidence_graph.json for a compiled structure
-  inspect-governance — project / validate Governance Intent per subdomain
 
 Pipeline: S1 EXTRACT → S2 CANONICALIZE → S3 SEMANTIC_ADDRESSING →
           S4 GOVERN → S5 CONSTRUCT → S6 PROJECT → S7 MATERIALIZE → S8 VERIFY → S9 ATTEST
@@ -307,116 +306,6 @@ def inspect(
         _inspect_downstream(query, downstream)
     elif family is not None:
         _inspect_family(query, family)
-
-
-@cli.command(name="inspect-governance")
-@click.option(
-    "--snapshot",
-    required=True,
-    help="Absolute path to protocol_snapshot/artifacts/",
-)
-@click.option(
-    "--output",
-    default=None,
-    help="Output directory for projected Governance Intent files (required for --mode project|both)",
-)
-@click.option(
-    "--subdomain",
-    default="all",
-    help="Subdomain to process, or 'all' to process every discovered subdomain (default: all)",
-)
-@click.option(
-    "--mode",
-    type=click.Choice(["project", "validate", "both"], case_sensitive=False),
-    default="both",
-    show_default=True,
-    help="project — write governance_intent_<subdomain>_v0.md; "
-         "validate — structural equivalence check; both — project then validate",
-)
-def inspect_governance(snapshot: str, output: str | None, subdomain: str, mode: str) -> None:
-    """
-    Project and/or validate Governance Intent per subdomain.
-
-    project  — reads protocol_snapshot artifacts and writes one
-               governance_intent_<subdomain>_v0.md per subdomain.
-
-    validate — compares generated Governance Intent prose against the
-               artifact content field for structural equivalence.
-
-    both     — runs project then validate (default).
-
-    Use --subdomain all to process every subdomain discovered in the snapshot.
-    """
-    from pgs_compiler.inspection.snapshot_discovery import discover_subdomains
-
-    if not os.path.isdir(snapshot):
-        click.echo(f"Error: snapshot directory not found: {snapshot}", err=True)
-        sys.exit(1)
-
-    if mode in ("project", "both") and not output:
-        click.echo("Error: --output is required for --mode project or both", err=True)
-        sys.exit(1)
-
-    try:
-        discovered = discover_subdomains(snapshot)
-    except Exception as exc:
-        click.echo(f"Error: failed to discover subdomains: {exc}", err=True)
-        sys.exit(1)
-
-    if subdomain == "all":
-        subdomains = sorted(discovered.keys())
-    else:
-        if subdomain not in discovered:
-            click.echo(
-                f"Error: unknown subdomain '{subdomain}'. "
-                f"Available: {sorted(discovered.keys())}",
-                err=True,
-            )
-            sys.exit(1)
-        subdomains = [subdomain]
-
-    click.echo(f"Snapshot  : {snapshot}")
-    if output:
-        click.echo(f"Output    : {output}")
-    click.echo(f"Mode      : {mode}")
-    click.echo(f"Subdomains: {', '.join(subdomains)}")
-    click.echo()
-
-    any_failure = False
-
-    for sd in subdomains:
-        click.echo(f"{'='*60}")
-        click.echo(f"Subdomain: {sd}")
-        click.echo()
-
-        if mode in ("project", "both"):
-            from pgs_compiler.inspection.governance_projection import run_projection
-            try:
-                out_path = run_projection(snapshot, output, sd)
-                click.echo(f"  → Written: {out_path}")
-            except Exception as exc:
-                click.echo(f"  ERROR (project): {exc}", err=True)
-                any_failure = True
-                if mode == "both":
-                    click.echo(f"  Skipping validate for {sd} due to project failure.")
-                    click.echo()
-                    continue
-
-        if mode in ("validate", "both"):
-            from pgs_compiler.inspection.equivalence_validation import run_validation
-            click.echo()
-            passed = run_validation(snapshot, sd)
-            if not passed:
-                any_failure = True
-
-        click.echo()
-
-    click.echo("=" * 60)
-    if any_failure:
-        click.echo("FAIL — one or more subdomains did not pass.")
-        sys.exit(1)
-    else:
-        click.echo(f"PASS — {len(subdomains)} subdomain(s) processed successfully.")
 
 
 # ---------------------------------------------------------------------------

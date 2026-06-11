@@ -176,6 +176,7 @@ def _project_single_node(node) -> dict[str, Any]:
         "domain_name": node.domain_name,
         "content_hash": node.content_hash,
         "frontmatter": dict(node.frontmatter),
+        "content": node.metadata.get("content", "") if node.metadata else "",
     }
 
 
