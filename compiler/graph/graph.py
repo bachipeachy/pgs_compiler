@@ -183,6 +183,35 @@ class GraphBuilder:
         """Add an edge to the graph."""
         self._edges.append(edge)
 
+    def drop_bare_duplicate_edges(self) -> int:
+        """
+        Drop metadata-empty edges shadowed by a metadata-rich duplicate.
+
+        The same relationship can be declared twice in an artifact — once in
+        its references/Dependencies header (typed to a bare edge) and once in
+        frontmatter (e.g. a CC pipeline step, which carries step metadata).
+        Both declarations are true; only one edge should survive: the one
+        carrying metadata. Edges that differ in metadata content (e.g.
+        NODE_NEXT outcome conditions) are distinct relationships and are
+        never dropped.
+
+        Returns the number of edges dropped.
+        """
+        rich_keys = {
+            (e.source_fqdn, e.target_fqdn, e.kind)
+            for e in self._edges
+            if e.metadata
+        }
+        kept: list[Edge] = []
+        dropped = 0
+        for edge in self._edges:
+            if not edge.metadata and (edge.source_fqdn, edge.target_fqdn, edge.kind) in rich_keys:
+                dropped += 1
+                continue
+            kept.append(edge)
+        self._edges = kept
+        return dropped
+
     def set_address_table(self, table: dict[str, int]) -> None:
         """Set the complete address table (forward lookup)."""
         self._address_table = dict(table)

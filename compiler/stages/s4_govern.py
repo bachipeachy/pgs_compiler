@@ -226,6 +226,7 @@ def _precompute_structural_analysis(
         EdgeKind.RB_MAPS,
         EdgeKind.WF_ADMITS_VIA_IN,
         EdgeKind.WF_BINDS_RB,
+        EdgeKind.TI_INVOKES_WF,
         EdgeKind.MOLECULE_COMPOSES_ATOM,
     ]
     topology_cycle_analysis = {

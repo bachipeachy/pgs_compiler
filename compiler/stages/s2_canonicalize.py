@@ -101,6 +101,21 @@ def s2_canonicalize(state: State) -> State:
     # --- Step 5: Build RB mapping edges from frontmatter ---
     _build_rb_mapping_edges(graph, builder, errors)
 
+    # --- Step 6: Build TI invocation edges from frontmatter ---
+    _build_ti_invocation_edges(graph, builder, errors)
+
+    # --- Step 7: Drop bare duplicates shadowed by metadata-rich edges ---
+    # The same binding is legitimately declared twice (references header +
+    # frontmatter pipeline step); only the metadata-rich edge survives.
+    dropped = builder.drop_bare_duplicate_edges()
+    if dropped:
+        trace.append(TraceEvent.create(
+            stage="S2_CANONICALIZE",
+            operation="bare_duplicate_edges_dropped",
+            detail={"count": dropped},
+            family=EventFamily.TOPOLOGY.value,
+        ))
+
     if errors:
         state = state.with_errors(*errors)
     if warnings:
@@ -167,6 +182,10 @@ def _classify_edge(source: Node, target: Node) -> EdgeKind:
     if sk == NodeKind.RB:
         if tk in (NodeKind.CT, NodeKind.CS):
             return EdgeKind.RB_MAPS
+
+    # TI invocation entry point
+    if sk == NodeKind.TI and tk == NodeKind.WF:
+        return EdgeKind.TI_INVOKES_WF
 
     # CT composition
     if sk == NodeKind.CT and tk == NodeKind.CT:
@@ -313,6 +332,51 @@ def _build_wf_topology_edges(
                 kind=EdgeKind.NODE_NEXT,
                 metadata={"condition": condition, "wf_fqdn": fqdn},
             ))
+
+
+def _build_ti_invocation_edges(
+    graph: Graph,
+    builder: GraphBuilder,
+    errors: list[CompilerError],
+) -> None:
+    """
+    Build TI invocation edges from TI frontmatter.
+
+    TI artifacts declare their workflow entry point via `core.workflow`
+    (semantics: TI → invokes → WF; WF → binds → RB). These become
+    TI_INVOKES_WF edges carrying the declared route.
+    """
+    for fqdn, node in graph.nodes.items():
+        if node.kind != NodeKind.TI:
+            continue
+
+        core = node.frontmatter.get("core", {})
+        if not isinstance(core, dict):
+            continue
+
+        wf_ref = core.get("workflow")
+        if not isinstance(wf_ref, str) or not wf_ref:
+            continue  # no declaration → no edge (zero inference)
+
+        if wf_ref not in graph.nodes:
+            errors.append(CompilerError(
+                code=ErrorCode.E104_INVALID_FQDN,
+                message=f"TI workflow target not found: {fqdn} → {wf_ref}",
+                phase="S2_CANONICALIZE",
+                fqdn_id=fqdn,
+            ))
+            continue
+
+        route = core.get("route") if isinstance(core.get("route"), dict) else {}
+        builder.add_edge(Edge.create(
+            source_fqdn=fqdn,
+            target_fqdn=wf_ref,
+            kind=EdgeKind.TI_INVOKES_WF,
+            metadata={
+                "route_path": route.get("path", ""),
+                "route_method": route.get("method", ""),
+            },
+        ))
 
 
 def _build_cc_pipeline_edges(

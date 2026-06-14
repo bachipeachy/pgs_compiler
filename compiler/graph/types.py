@@ -60,6 +60,9 @@ class EdgeKind(Enum):
     WF_ADMITS_VIA_IN = "WF_ADMITS_VIA_IN"        # WF → IN admission gate
     WF_BINDS_RB = "WF_BINDS_RB"                 # WF → RB binding
 
+    # --- Boundary ---
+    TI_INVOKES_WF = "TI_INVOKES_WF"              # TI → WF declared invocation entry point
+
     # --- Composition ---
     MOLECULE_COMPOSES_ATOM = "MOLECULE_COMPOSES_ATOM"  # CT molecule → CT atom
     CT_ATOM_STEP = "CT_ATOM_STEP"                      # CT → atom stream step

@@ -32,6 +32,7 @@ from pgs_compiler.compiler.atoms.errors import CompilerError
 from pgs_compiler.compiler.atoms.error_codes import ErrorCode
 from pgs_compiler.compiler.projections import (
     COMPILER_VERSION,
+    EVIDENCE_GRAPH_SCHEMA_VERSION,
     ProjectionClass,
     ProjectionType,
     Projection,
@@ -843,6 +844,7 @@ def _materialize_evidence_graph(
         "evidence_graph_hash": evidence_graph_hash,
         "structure_id": structure_id,
         "compiler_version": COMPILER_VERSION,
+        "schema_version": EVIDENCE_GRAPH_SCHEMA_VERSION,
     }
 
     output_path = structure_dir / "evidence_graph.json"

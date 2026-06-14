@@ -4,15 +4,19 @@ pgs build — Snapshot build orchestration entry point.
 
 Pipeline:
   1. sync_protocol_snapshot.sh   (file movement — unchanged)
-  2. conformance/runner.py       (correctness — all CT conformance cases)
-  3. snapshot_attestation.json   (trust boundary — root hash of per-structure attestations)
-  4. snapshot_status.json        (verification contract — written only on full pass)
+  2. artifact_index/index.json + stores.json  (federated query metadata — consumed by pi)
+  3. conformance/runner.py       (correctness — all CT conformance cases;
+                                  results materialized to conformance_results.json,
+                                  written on pass AND fail so violations stay queryable)
+  4. snapshot_attestation.json   (trust boundary — root hash of per-structure attestations)
+  5. snapshot_status.json        (verification contract — written only on full pass)
 
 Usage:
   python pgs_compiler/scripts/pgs_build.py --workspace /abs/path/to/pgs_workspace
 
 Hard gates:
   - Sync script failure → exit 1, no status written
+  - Artifact index emission failure → exit 1, no status written
   - Any conformance failure → exit 1, no status written
   - snapshot_status.json is only written when ALL cases pass
   - Missing attestations → warning only (not a hard gate in v0.3.0)
@@ -54,8 +58,40 @@ def step_sync(workspace: Path) -> None:
     print("[pgs build] sync complete\n")
 
 
+def step_artifact_index(workspace: Path) -> None:
+    """
+    Emit protocol_snapshot/artifact_index/index.json — federated query metadata.
+
+    Joins the synced canonical artifacts with the vocabulary and evidence
+    projections into the FQDN index consumed by the inspection surface (pi).
+    """
+    print("[pgs build] ── Step 2: artifact index ───────────────────────────")
+    from pgs_compiler.compiler.projections.artifact_index import (
+        build_artifact_index,
+        write_artifact_index,
+    )
+    from pgs_compiler.compiler.projections.store_index import (
+        build_store_index,
+        write_store_index,
+    )
+    try:
+        content = build_artifact_index(workspace)
+        output_path = write_artifact_index(workspace, content)
+    except (FileNotFoundError, ValueError) as e:
+        sys.exit(f"[pgs build] ERROR: artifact index emission failed: {e}")
+    print(f"[pgs build] artifact_index written → {output_path}")
+    print(f"[pgs build]   artifacts indexed: {content['artifact_count']}")
+    try:
+        store_content = build_store_index(workspace)
+        store_path = write_store_index(workspace, store_content)
+    except (FileNotFoundError, ValueError) as e:
+        sys.exit(f"[pgs build] ERROR: store index emission failed: {e}")
+    print(f"[pgs build] store_index written → {store_path}")
+    print(f"[pgs build]   stores indexed: {store_content['store_count']}\n")
+
+
 def step_conformance(workspace: Path):
-    print("[pgs build] ── Step 2: CT conformance tests ─────────────────────")
+    print("[pgs build] ── Step 3: CT conformance tests ─────────────────────")
     from pgs_runtime.conformance import run as run_conformance
     snapshot_root = workspace / "protocol_snapshot"
     result = run_conformance(snapshot_root)
@@ -74,6 +110,26 @@ def step_conformance(workspace: Path):
     else:
         print()
 
+    # Materialize results (§7.5) — written on pass AND fail so violation
+    # state is queryable (pi snapshot validate/violations) without rebuilding.
+    results_payload = {
+        "schema_version": "v0",
+        "generated_by": "pgs_compiler.cli build",
+        "artifact_count": result.artifact_count,
+        "passed": result.passed,
+        "failed": result.failed,
+        "all_passed": result.all_passed,
+        "cases": [
+            {"fqdn": case.fqdn, "passed": case.passed, "error": case.error or None}
+            for case in sorted(result.cases, key=lambda c: c.fqdn)
+        ],
+    }
+    results_file = workspace / "conformance_results.json"
+    results_file.write_text(
+        json.dumps(results_payload, indent=2, sort_keys=True) + "\n"
+    )
+    print(f"[pgs build] conformance_results.json written → {results_file}")
+
     return result
 
 
@@ -90,7 +146,7 @@ def step_attest_snapshot(workspace: Path) -> str | None:
     import hashlib
     from datetime import datetime, timezone
 
-    print("[pgs build] ── Step 3: snapshot attestation ────────────────────────")
+    print("[pgs build] ── Step 4: snapshot attestation ────────────────────────")
 
     trust_root = workspace / "trust_snapshot"
     if not trust_root.exists():
@@ -151,7 +207,7 @@ def step_attest_snapshot(workspace: Path) -> str | None:
 
 
 def step_mark_valid(workspace: Path, result) -> None:
-    print("[pgs build] ── Step 4: mark snapshot valid ───────────────────────")
+    print("[pgs build] ── Step 5: mark snapshot valid ───────────────────────")
     status = {
         "status": "VALID",
         "conformance_passed": True,
@@ -198,6 +254,8 @@ def main() -> None:
     step_invalidate_snapshot(workspace)
 
     step_sync(workspace)
+
+    step_artifact_index(workspace)
 
     result = step_conformance(workspace)
 

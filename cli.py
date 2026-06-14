@@ -134,12 +134,16 @@ def compile(
     for struct_code in structures:
         try:
             agg_type = _get_aggregation_type(struct_code)
-            if agg_type == "VOCABULARY":
-                _run_vocabulary_aggregate(struct_code, verbose=verbose)
-            elif agg_type:
-                raise ValueError(f"Unknown aggregation_type '{agg_type}' in {struct_code}")
-            else:
-                _run_compile(struct_code, verbose=verbose)
+            if agg_type:
+                raise ValueError(
+                    f"'{struct_code}' declares aggregation_type '{agg_type}' — "
+                    "the Phase B aggregation compile path is retired. Per-domain "
+                    "vocabulary is materialized in Phase A (S7); cross-structure "
+                    "query metadata (protocol_snapshot/artifact_index/) is emitted "
+                    "by `pgs_compiler.cli build`. Aggregation STRUCTUREs are not "
+                    "compilable."
+                )
+            _run_compile(struct_code, verbose=verbose)
             success_count += 1
         except CompilerError as e:
             click.echo(f"Build failed for {struct_code}: {e.format(verbose=verbose)}", err=True)
@@ -400,75 +404,6 @@ def _get_aggregation_type(structure_code: str) -> str | None:
         return config.get("aggregation_type") or None
     except Exception:
         return None
-
-
-def _run_vocabulary_aggregate(structure_code: str, verbose: bool) -> None:
-    """
-    Run the federated vocabulary aggregation phase (Phase Type B).
-
-    Consumes declared output surfaces from all contributing domain structures
-    and produces vocabulary_symbols.json and vocabulary_semantic_index.json.
-    Requires all Phase Type A builds to have completed first.
-    """
-    click.echo(f"Vocabulary Aggregation — {structure_code}")
-    click.echo()
-
-    from pgs_compiler.structure_loader import load_structure_artifact, get_bootstrap_search_roots
-    try:
-        aggregate_config = load_structure_artifact(structure_code, get_bootstrap_search_roots())
-    except Exception as e:
-        raise RuntimeError(f"Failed to load aggregation STRUCTURE {structure_code}: {e}") from e
-
-    click.echo(f"   STRUCTURE: {structure_code}")
-    click.echo(f"   Type: VOCABULARY aggregation (Phase Type B)")
-    click.echo()
-
-    from pgs_governance.implementation.structure.resolution import paths as path_registry, bootstrap
-    from pgs_governance.implementation.vocabulary.builder.contract import VocabularyContract
-    from pgs_governance.implementation.vocabulary.builder.orchestrator import VocabularyOrchestrator
-
-    bootstrap()
-
-    try:
-        vocab_contract = VocabularyContract.from_aggregate_structure(path_registry, aggregate_config)
-    except Exception as e:
-        raise RuntimeError(f"Failed to build vocabulary contract: {e}") from e
-
-    vocab_logger = (lambda msg: click.echo(f"   [vocab] {msg}")) if verbose else (lambda msg: None)
-
-    vocab_orchestrator = VocabularyOrchestrator(
-        contract=vocab_contract,
-        read_file=lambda p: p.read_text(encoding="utf-8"),
-        write_file=lambda p, c: (p.parent.mkdir(parents=True, exist_ok=True), p.write_text(c, encoding="utf-8")),
-        logger=vocab_logger,
-    )
-
-    if verbose:
-        click.echo("   Source directories:")
-        for label, dirs in [
-            ("capability_transforms", vocab_contract.capability_transforms_dirs),
-            ("capability_side_effects", vocab_contract.capability_side_effects_dirs),
-            ("capability_contracts", vocab_contract.capability_contracts_dirs),
-            ("workflows", vocab_contract.workflows_dirs),
-            ("intents", vocab_contract.intents_dirs),
-        ]:
-            for d in dirs:
-                exists = "Y" if d.exists() else "N (missing)"
-                click.echo(f"      [{label}] {d} {exists}")
-        click.echo()
-
-    vocab_result = vocab_orchestrator.run()
-
-    if not vocab_result.success:
-        for error in vocab_result.errors:
-            click.echo(f"   {error}", err=True)
-        raise RuntimeError("Vocabulary aggregation failed — ensure all domain builds completed first")
-
-    click.echo(f"   vocabulary_symbols.json -> {vocab_contract.vocabulary_symbols_path}")
-    click.echo(f"   vocabulary_semantic_index.json -> {vocab_contract.vocabulary_semantic_index_path}")
-    click.echo()
-    click.echo("Vocabulary aggregation complete!")
-    click.echo(f"\n{60*'='}\n")
 
 
 # ---------------------------------------------------------------------------

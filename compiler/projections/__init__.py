@@ -167,8 +167,13 @@ def make_metadata(
 
 
 # Version constants — compiler_version must match pyproject.toml
-COMPILER_VERSION = "0.5.0"
+COMPILER_VERSION = "0.6.0"
 PROJECTION_SCHEMA_VERSION = "v0"
+
+# Declared schema contracts for projections consumed by external tooling (pi).
+# Immutable-versioning discipline: a shape change requires a new version value.
+EVIDENCE_GRAPH_SCHEMA_VERSION = "v0"
+ARTIFACT_INDEX_SCHEMA_VERSION = "v0"
 
 # Structure artifact code → structure scope for projection output paths.
 # Explicit map — no inference, no parsing. PGS doctrine: zero guessing.
@@ -183,3 +188,7 @@ def get_structure_scope(structure_config: dict[str, Any]) -> str | None:
     """Resolve structure scope from structure_artifact_code. Returns None if unknown."""
     code = structure_config.get("structure_artifact_code", "")
     return _STRUCTURE_SCOPE_MAP.get(code)
+
+
+# Inverse: structure scope → STRUCTURE artifact code. Explicit, no parsing.
+SCOPE_STRUCTURE_MAP: dict[str, str] = {v: k for k, v in _STRUCTURE_SCOPE_MAP.items()}

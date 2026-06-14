@@ -19,6 +19,7 @@ from .evidence_query import EvidenceQuery
 _REQUIRED_TOP_LEVEL_KEYS = frozenset({
     "structure_id",
     "compiler_version",
+    "schema_version",
     "evidence_graph_hash",
     "event_count",
     "edge_count",
@@ -26,6 +27,10 @@ _REQUIRED_TOP_LEVEL_KEYS = frozenset({
     "edges",
     "families",
 })
+
+# Schema versions this consumer understands. Declared locally — the
+# evidence_graph.json schema is the only contract (no compiler imports).
+_SUPPORTED_SCHEMA_VERSIONS = frozenset({"v0"})
 
 _REQUIRED_EVENT_KEYS = frozenset({
     "event_id",
@@ -82,6 +87,12 @@ def _validate_structure(raw: dict, path: Path) -> None:
     if missing:
         raise ValueError(
             f"evidence_graph.json missing required keys {sorted(missing)}: {path}"
+        )
+
+    if raw["schema_version"] not in _SUPPORTED_SCHEMA_VERSIONS:
+        raise ValueError(
+            f"evidence_graph.json schema_version '{raw['schema_version']}' not supported "
+            f"(supported: {sorted(_SUPPORTED_SCHEMA_VERSIONS)}): {path}"
         )
 
     if not isinstance(raw["events"], list):
