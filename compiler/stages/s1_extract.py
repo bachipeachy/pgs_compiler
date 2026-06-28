@@ -39,29 +39,15 @@ _MACHINE_BLOCK_PATTERN = re.compile(
 )
 
 # Artifact type → NodeKind mapping
-_TYPE_TO_KIND: dict[str, NodeKind] = {
-    "WF": NodeKind.WF,
-    "CC": NodeKind.CC,
-    "CT": NodeKind.CT,
-    "CS": NodeKind.CS,
-    "RB": NodeKind.RB,
-    "IN": NodeKind.IN,
-    "EV": NodeKind.EV,
-    "AC": NodeKind.AC,
-    "TI": NodeKind.TI,
-    "TE": NodeKind.TE,
-    "ASSERT": NodeKind.ASSERT,
-    "SCHEMA": NodeKind.GOVERNANCE,
-    "TEST_DATA": NodeKind.TEST_DATA,
-    "GOVERNANCE": NodeKind.GOVERNANCE,
-    # Governance sub-types that map to GOVERNANCE node kind
-    "CONSTITUTION": NodeKind.GOVERNANCE,
-    "INVARIANT": NodeKind.GOVERNANCE,
-    "LAYER": NodeKind.GOVERNANCE,
-    "STRUCTURE": NodeKind.GOVERNANCE,
-    "SURFACE": NodeKind.GOVERNANCE,
-    "VOCAB": NodeKind.GOVERNANCE,
-}
+def _type_to_kind(artifact_type: str) -> NodeKind | None:
+    """Artifact-type prefix → NodeKind, via the single-source-of-truth ArtifactKindRegistry.
+
+    Replaces the legacy _TYPE_TO_KIND dict. The registry returns the NodeKind as a string (it is a
+    governance-layer module and must not import this compiler enum); we map it to NodeKind here.
+    """
+    from pgs_governance.implementation.artifact_kinds import REGISTRY
+    nk = REGISTRY.node_kind(artifact_type)
+    return NodeKind(nk) if nk is not None else None
 
 
 def s1_extract(state: State) -> State:
@@ -476,7 +462,7 @@ def _parse_artifact_to_node(
 
     # Determine node kind
     artifact_type = artifact["artifact_type"]
-    kind = _TYPE_TO_KIND.get(artifact_type)
+    kind = _type_to_kind(artifact_type)
     if kind is None:
         errors.append(CompilerError(
             code=ErrorCode.E901_INTERNAL_ERROR,
@@ -565,10 +551,15 @@ def _extract_references(
         if isinstance(data, dict):
             for k, v in data.items():
                 if k in singular_fields:
-                    if isinstance(v, str):
-                        resolved = validate_ref(v)
-                        if resolved:
-                            references.add(resolved)
+                    # A singular reference field is usually a scalar FQDN, but `governed_by` (and
+                    # potentially others) may be authored as a list of FQDNs. Both must become
+                    # REFERENCES edges — otherwise a list-valued governed_by is silently dropped and
+                    # its GOVERNED_BY edge never emitted (CSI Finding #001).
+                    for item in ([v] if isinstance(v, str) else (v if isinstance(v, list) else [])):
+                        if isinstance(item, str):
+                            resolved = validate_ref(item)
+                            if resolved:
+                                references.add(resolved)
                 elif k in plural_fields and isinstance(v, list):
                     for item in v:
                         if isinstance(item, str):

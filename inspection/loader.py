@@ -29,14 +29,10 @@ _BEHAVIOR_LOGIC_ROOT = "protocol_snapshot/behavior_logic"
 _HEADER_FIELD_RE = re.compile(r"^- \*\*(?P<label>[A-Za-z ]+):\*\*\s*(?P<value>.+?)\s*$", re.MULTILINE)
 
 # Artifact kind → PPS snapshot section.
-PPS_SECTION_BY_KIND = {
-    "WF": "workflows",
-    "CC": "capability_contracts",
-    "CT": "capability_transforms",
-    "CS": "capability_side_effects",
-    "IN": "intents",
-    "RB": "runtime_bindings",
-}
+# Single source of truth: the ArtifactKindRegistry (replaces the legacy hardcoded map).
+from pgs_governance.implementation.artifact_kinds import REGISTRY as _KIND_REGISTRY
+
+PPS_SECTION_BY_KIND = _KIND_REGISTRY.pps_sections()
 
 
 class Workspace:

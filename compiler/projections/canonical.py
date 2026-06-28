@@ -102,22 +102,16 @@ def project_canonical(graph: Graph) -> tuple[Projection, list[TraceEvent]]:
     return projection, trace
 
 
-_GOVERNANCE_PREFIXES = ("INVARIANT", "CONSTITUTION", "SCHEMA", "STRUCTURE", "SURFACE", "VOCAB")
-
-
 def _resolve_artifact_type(node: Node) -> str:
     """
-    Resolve the artifact type prefix for output.
+    Resolve the artifact type prefix written into the canonical projection.
 
-    Non-GOVERNANCE nodes: kind.value matches the prefix (WF, CC, CT, etc.).
-    GOVERNANCE nodes: extract the actual prefix from artifact_code.
+    Single source of truth: the ArtifactKindRegistry (replaces the legacy _GOVERNANCE_PREFIXES list).
+    Non-GOVERNANCE nodes: kind.value IS the prefix. GOVERNANCE nodes: keep the code's prefix when the
+    descriptor says so, else collapse to "GOVERNANCE".
     """
-    if node.kind != NodeKind.GOVERNANCE:
-        return node.kind.value
-    for prefix in _GOVERNANCE_PREFIXES:
-        if node.artifact_code.startswith(prefix + "_"):
-            return prefix
-    return node.kind.value
+    from pgs_governance.implementation.artifact_kinds import REGISTRY
+    return REGISTRY.canonical_type(node.kind.value, node.artifact_code)
 
 
 def _project_node(node: Node) -> dict[str, Any] | None:

@@ -167,7 +167,7 @@ def make_metadata(
 
 
 # Version constants — compiler_version must match pyproject.toml
-COMPILER_VERSION = "0.6.0"
+COMPILER_VERSION = "0.7.0"
 PROJECTION_SCHEMA_VERSION = "v0"
 
 # Declared schema contracts for projections consumed by external tooling (pi).
