@@ -794,6 +794,104 @@ def snapshot_status(session: Session, as_json: bool) -> None:
     emit(as_json, {"command": "snapshot status"}, result, text)
 
 
+@snapshot.command("discover")
+@click.option("--domain", required=True, help="the CR's domain (e.g. blockchain)")
+@click.option("--subdomain", default=None, help="the CR's subdomain (e.g. chain)")
+@click.option("--tokens", required=True,
+              help="declared transformation-scope concept tokens, comma-separated (e.g. BLOCK,COMMIT)")
+@json_flag
+@pass_session
+def snapshot_discover(session: Session, domain: str, subdomain: str | None,
+                      tokens: str, as_json: bool) -> None:
+    """Discovery Projection — the governed semantic neighbourhood for a transformation scope.
+
+    The platform ACQUIRES the neighbourhood deterministically (existing / absent / structural /
+    relationships / authority evidence, each existing node with inclusion provenance). It never
+    DISPOSES of it — RELEVANT/EXCLUDED/NEW are the worker's judgment (SPP)."""
+    from pgs_compiler.inspection.discovery import (
+        TransformationScope, compute_discovery_projection)
+    scope = TransformationScope(
+        domain=domain, subdomain=subdomain,
+        concept_tokens=tuple(t.strip().upper() for t in tokens.split(",") if t.strip()))
+    result = compute_discovery_projection(session.graph, scope)
+
+    def text(r: dict[str, Any]) -> None:
+        ident, ev = r["projection_identity"], r["evidence"]
+        heading(f"Discovery Projection — {ident['subject']}")
+        field("projection_id", ident["projection_id"])
+        field("source_snapshot_id", ident["source_snapshot_id"])
+        field("roots", len(ident["bounds"]["roots"]))
+        heading("Evidence")
+        field("existing", len(ev["existing"]))
+        field("absent (negative)", ", ".join(a["concept"] for a in ev["absent"]) or "(none)")
+        field("orphans", len(ev["structural"]["orphans"]))
+        field("dangling_references", len(ev["structural"]["dangling_references"]))
+        field("relationships", len(ev["relationships"]))
+        by_kind: dict[str, int] = {}
+        for n in ev["existing"]:
+            by_kind[n["kind"]] = by_kind.get(n["kind"], 0) + 1
+        heading("Neighbourhood by kind")
+        for k, v in sorted(by_kind.items()):
+            field(k, v)
+
+    emit(as_json, {"command": "snapshot discover"}, result, text)
+
+
+@snapshot.command("impact-projection")
+@click.argument("ref")
+@json_flag
+@pass_session
+def snapshot_impact_projection(session: Session, ref: str, as_json: bool) -> None:
+    """Impact Projection — the governed blast radius (transitive consumers) of an artifact.
+
+    A second Semantic Projection sharing the Discovery contract (identity, determinism, closure). The
+    platform ACQUIRES who is impacted; whether that impact matters to a change is the worker's judgment
+    (Knowledge Partition Theorem). The Public Semantic Surface (cross-boundary consumers) is well-defined
+    here because the subject already exists."""
+    from pgs_compiler.inspection.impact_projection import compute_impact_projection
+    fqdn, _ = session.resolver.resolve(ref)
+    result = compute_impact_projection(session.graph, fqdn)
+
+    def text(r: dict[str, Any]) -> None:
+        ident, ev = r["projection_identity"], r["evidence"]
+        heading(f"Impact Projection — {ident['subject']}")
+        field("projection_id", ident["projection_id"])
+        field("source_snapshot_id", ident["source_snapshot_id"])
+        field("impacted", len(ev["impacted"]))
+        field("direct consumers", len(ev["direct"]))
+        field("public surface (cross-boundary)", len(ev["public_surface"]))
+        heading("Impacted by kind")
+        for k, v in ev["by_kind"].items():
+            field(k, v)
+
+    emit(as_json, {"command": "snapshot impact-projection", "target": fqdn}, result, text)
+
+
+@snapshot.command("semantic-model")
+@json_flag
+@pass_session
+def snapshot_semantic_model(session: Session, as_json: bool) -> None:
+    """Semantic Model — every artifact's deterministically-derived semantic dimensions.
+
+    The substrate under the projections (the Semantic Dimension Model): projections become queries over
+    one model. Every dimension carries its derivation source; a property that would need inference is not
+    a dimension but a disposition (Knowledge Partition Theorem). `undetermined` counts are the signal for
+    the next compiler-model enrichment."""
+    from pgs_compiler.inspection.semantic_model import (
+        compute_semantic_model, derivation_coverage, DIMENSIONS)
+    model = compute_semantic_model(session.graph, session.workspace)
+    cov = derivation_coverage(model)
+    result = {"artifacts": len(model), "dimensions": list(DIMENSIONS), "derivation_coverage": cov}
+
+    def text(r: dict[str, Any]) -> None:
+        heading(f"Semantic Model — {r['artifacts']} artifacts × {len(r['dimensions'])} dimensions")
+        for d in r["dimensions"]:
+            c = r["derivation_coverage"][d]
+            field(d, f"{c['determined']} determined · {c['undetermined']} undetermined")
+
+    emit(as_json, {"command": "snapshot semantic-model"}, result, text)
+
+
 @snapshot.command("summary")
 @json_flag
 @pass_session

@@ -177,9 +177,33 @@ def _index_entry(
     entry = {
         "domain": domain,
         "kind": kind,
+        # owner_subdomain — the artifact's governed OWNERSHIP (single-valued), declared by its module
+        # organization (`pgs_<domain>.registry.<subdomain>.<kind>`), NOT by graph references. IMMUTABLE
+        # once emitted: it is a pure function of `module_path`, which is part of the immutable versioned
+        # artifact — so ownership cannot drift from a new consumer; re-homing to another subdomain changes
+        # `module_path` and therefore requires a NEW version (the old version's owner_subdomain is fixed).
+        # None for federation-level artifacts (constitution/layers/invariants) that are not subdomain-owned.
+        # Participation (which subdomains reach it) is a SEPARATE, computed dimension — never conflated.
+        "owner_subdomain": _owner_subdomain(raw.get("module_path")),
         "structures": structures,
         "canonical_path": file.relative_to(workspace).as_posix(),
         "evidence_paths": evidence_paths,
         "addresses": {scope: scopes[scope] for scope in sorted(scopes)},
     }
     return fqdn, entry
+
+
+def _owner_subdomain(module_path: str | None) -> str | None:
+    """The owning subdomain declared by an artifact's module path, read with zero inference.
+
+    A subdomain-owned artifact is organized as `pgs_<pkg>.registry.<subdomain>.<kind>` — the subdomain
+    sits *before* a kind directory (4+ segments). Returns None (not subdomain-owned) for:
+      * domain-level shared artifacts — `pgs_<pkg>.registry.<kind>` (3 segments, e.g. capability_transforms,
+        capability_side_effects, entities): a pure transform belongs to the domain, not a subdomain;
+      * federation-level artifacts — `…registry.FB_<...>.…` (constitution, topology, assertions)."""
+    if not module_path:
+        return None
+    parts = module_path.split(".")
+    if len(parts) >= 4 and parts[1] == "registry" and not parts[2].startswith("FB_"):
+        return parts[2]
+    return None
